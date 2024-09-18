@@ -20,12 +20,12 @@ const path_1 = require("path");
 const node_cron_1 = __importDefault(require("node-cron"));
 const moment_timezone_1 = __importDefault(require("moment-timezone"));
 const bot = new grammy_1.Bot(process.env.BOT_TOKEN || "");
-let db;
+let db = null;
 const GROUP_ID = parseInt(process.env.GROUP_ID || "0", 10);
 function isDBOpen(ctx) {
     return __awaiter(this, void 0, void 0, function* () {
         if (!db) {
-            yield ctx.reply("Database is not open. Use /start to open or create it.");
+            yield ctx.reply("База данных не открыта. Используйте команду /start для её открытия или создания.");
             return false;
         }
         return true;
@@ -47,7 +47,7 @@ function openDb() {
             return database;
         }
         catch (error) {
-            console.error('Failed to open database or run initial setup:', error);
+            console.error("Не удалось открыть базу данных или выполнить начальную настройку:", error);
             throw error;
         }
     });
@@ -55,14 +55,14 @@ function openDb() {
 bot.command("start", (ctx) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         db = yield openDb();
-        console.log("Database was opened or created");
-        yield ctx.reply("To add BirthDay use - /addBday user_tag DD-MM-YYYY or DD-MM\n\
-      To delete BirthDay use - /deleteBday user_tag");
+        console.log("База данных была успешно открыта или создана.");
+        yield ctx.reply("Чтобы добавить день рождения, используйте - /addBday user_tag ДД-ММ-ГГГГ или ДД-ММ\n" +
+            "Чтобы удалить день рождения, используйте - /deleteBday user_tag");
     }
     catch (error) {
-        console.error("Failed to open or create the database:", error);
+        console.error("Не удалось открыть или создать базу данных:", error);
+        yield ctx.reply("Не удалось инициализировать базу данных. Проверьте логи для получения дополнительной информации.");
     }
-    ctx.reply("Bot is ready to work");
 }));
 function parseBday(date) {
     const formats = ["DD-MM-YYYY", "DD-MM"];
@@ -78,58 +78,57 @@ function parseBday(date) {
     return null;
 }
 bot.command("addBday", (ctx) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     if (!(yield isDBOpen(ctx)))
         return;
-    if (!ctx.message || !ctx.message.text) {
-        return ctx.reply("No message was found. Please send the command with a message.");
-    }
-    const messageText = ctx.message.text;
+    const messageText = ((_a = ctx.message) === null || _a === void 0 ? void 0 : _a.text) || "";
     const [command, user, date] = messageText.split(" ");
     if (command !== "/addBday" || !user || !date) {
-        return yield ctx.reply("Usage: /addBday user DD-MM-YYYY or DD-MM (e.g., /addBday enderguy77 14-12-2004 or /addBday enderguy77 14-12)");
+        return ctx.reply("Использование: /addBday user ДД-ММ-ГГГГ или ДД-ММ (например, /addBday enderguy77 14-12-2004 или /addBday enderguy77 14-12)");
     }
     const formattedBday = parseBday(date);
     if (!formattedBday) {
-        return ctx.reply("Invalid date format. Please use DD-MM-YYYY or DD-MM.");
+        return ctx.reply("Неверный формат даты. Используйте DD-MM-YYYY или DD-MM.");
     }
     const isValidDate = (0, moment_timezone_1.default)(formattedBday, "DD-MM-YYYY", true).isValid();
     if (!isValidDate) {
-        return ctx.reply("Invalid date. Please check that the date is correct and try again.");
+        return ctx.reply("Неверная дата. Пожалуйста, проверьте, что дата правильная, и попробуйте снова.");
     }
     try {
-        yield db.run("INSERT INTO birthdays (user, birthday) VALUES (?, ?)", [user, formattedBday]);
-        ctx.reply(`Birthday set for @${user} on ${formattedBday}! 🎉`);
+        yield db.run("INSERT INTO birthdays (user, birthday) VALUES (?, ?)", [
+            user,
+            formattedBday,
+        ]);
+        ctx.reply(`День рождения установлен для @${user} на ${formattedBday}! 🎉`);
     }
     catch (error) {
-        console.error("Failed to set birthday:", error);
-        ctx.reply("An error occurred while setting the birthday. Please try again.");
+        console.error("Не удалось установить день рождения:", error);
+        ctx.reply("Произошла ошибка при установке дня рождения. Пожалуйста, попробуйте снова.");
     }
 }));
 bot.command("deleteBday", (ctx) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     if (!(yield isDBOpen(ctx)))
         return;
-    if (!ctx.message || !ctx.message.text) {
-        return ctx.reply("No message was found. Please send the command with a message.");
-    }
-    const messageText = ctx.message.text;
+    const messageText = ((_a = ctx.message) === null || _a === void 0 ? void 0 : _a.text) || "";
     const [command, user] = messageText.split(" ");
     if (command !== "/deleteBday" || !user) {
-        return yield ctx.reply("Usage: /deleteBday user (e.g., /deleteBday enderguy77)");
+        return ctx.reply("Использование: /deleteBday user (например, /deleteBday enderguy77)");
     }
     try {
         const result = yield db.run("DELETE FROM birthdays WHERE user = ?", [
             user,
         ]);
         if (result.changes) {
-            ctx.reply(`Birthday for @${user} deleted successfully.`);
+            ctx.reply(`День рождения для @${user} успешно удален.`);
         }
         else {
-            ctx.reply(`No birthday found for @${user}.`);
+            ctx.reply(`День рождения для @${user} не найден.`);
         }
     }
     catch (error) {
-        console.error("Error deleting birthday:", error);
-        ctx.reply("An error occurred while deleting the birthday. Please try again.");
+        console.error("Ошибка при удалении дня рождения:", error);
+        ctx.reply("Произошла ошибка при удалении дня рождения. Пожалуйста, попробуйте снова.");
     }
 }));
 function calculateAge(birthday) {
@@ -150,20 +149,20 @@ function sendBday() {
             }
             for (const user of todayBday) {
                 const age = calculateAge(user.birthday);
-                let message = `🎉 Happy Birthday, @${user.user}! 🎂🥳`;
+                let message = `🎉 С днём рождения, @${user.user}! 🎂🥳`;
                 if (age !== null) {
-                    message += ` You are ${age} years old! 🎉`;
+                    message += ` Вам ${age} лет! 🎉`;
                 }
                 yield bot.api.sendMessage(GROUP_ID, message);
             }
         }
         catch (error) {
-            console.error("Error sending birthday messages:", error);
+            console.error("Ошибка при отправке сообщений о днях рождения:", error);
         }
     });
 }
-const timer = node_cron_1.default.schedule("0 9 * * *", () => __awaiter(void 0, void 0, void 0, function* () {
-    console.log("Running scheduled task at 9 AM");
+node_cron_1.default.schedule("0 9 * * *", () => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("Выполнение запланированной задачи в 9 утра");
     yield sendBday();
 }), { scheduled: true, timezone: "Europe/Kiev" });
 bot.start();

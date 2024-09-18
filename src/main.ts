@@ -13,7 +13,9 @@ const GROUP_ID: number = parseInt(process.env.GROUP_ID || "0", 10);
 
 async function isDBOpen(ctx: Context): Promise<boolean> {
   if (!db) {
-    await ctx.reply("Database is not open. Use /start to open or create it.");
+    await ctx.reply(
+      "База данных не открыта. Используйте команду /start для её открытия или создания."
+    );
     return false;
   }
   return true;
@@ -36,7 +38,10 @@ async function openDb(): Promise<Database> {
 
     return database;
   } catch (error) {
-    console.error('Failed to open database or run initial setup:', error);
+    console.error(
+      "Не удалось открыть базу данных или выполнить начальную настройку:",
+      error
+    );
     throw error;
   }
 }
@@ -44,15 +49,17 @@ async function openDb(): Promise<Database> {
 bot.command("start", async (ctx: Context) => {
   try {
     db = await openDb();
-    console.log("Database was opened or created");
+    console.log("База данных была успешно открыта или создана.");
 
     await ctx.reply(
-      "To add a birthday use - /addBday user_tag DD-MM-YYYY or DD-MM\n" +
-      "To delete a birthday use - /deleteBday user_tag"
+      "Чтобы добавить день рождения, используйте - /addBday user_tag ДД-ММ-ГГГГ или ДД-ММ\n" +
+        "Чтобы удалить день рождения, используйте - /deleteBday user_tag"
     );
   } catch (error) {
-    console.error("Failed to open or create the database:", error);
-    await ctx.reply("Failed to initialize the database. Check the logs for more information.");
+    console.error("Не удалось открыть или создать базу данных:", error);
+    await ctx.reply(
+      "Не удалось инициализировать базу данных. Проверьте логи для получения дополнительной информации."
+    );
   }
 });
 
@@ -77,27 +84,36 @@ bot.command("addBday", async (ctx: Context) => {
   const [command, user, date] = messageText.split(" ");
 
   if (command !== "/addBday" || !user || !date) {
-    return ctx.reply("Usage: /addBday user DD-MM-YYYY or DD-MM (e.g., /addBday enderguy77 14-12-2004 or /addBday enderguy77 14-12)");
+    return ctx.reply(
+      "Использование: /addBday user ДД-ММ-ГГГГ или ДД-ММ (например, /addBday enderguy77 14-12-2004 или /addBday enderguy77 14-12)"
+    );
   }
 
   const formattedBday = parseBday(date);
 
   if (!formattedBday) {
-    return ctx.reply("Invalid date format. Please use DD-MM-YYYY or DD-MM.");
+    return ctx.reply("Неверный формат даты. Используйте DD-MM-YYYY или DD-MM.");
   }
 
   const isValidDate = moment(formattedBday, "DD-MM-YYYY", true).isValid();
 
   if (!isValidDate) {
-    return ctx.reply("Invalid date. Please check that the date is correct and try again.");
+    return ctx.reply(
+      "Неверная дата. Пожалуйста, проверьте, что дата правильная, и попробуйте снова."
+    );
   }
 
   try {
-    await db!.run("INSERT INTO birthdays (user, birthday) VALUES (?, ?)", [user, formattedBday]);
-    ctx.reply(`Birthday set for @${user} on ${formattedBday}! 🎉`);
+    await db!.run("INSERT INTO birthdays (user, birthday) VALUES (?, ?)", [
+      user,
+      formattedBday,
+    ]);
+    ctx.reply(`День рождения установлен для @${user} на ${formattedBday}! 🎉`);
   } catch (error) {
-    console.error("Failed to set birthday:", error);
-    ctx.reply("An error occurred while setting the birthday. Please try again.");
+    console.error("Не удалось установить день рождения:", error);
+    ctx.reply(
+      "Произошла ошибка при установке дня рождения. Пожалуйста, попробуйте снова."
+    );
   }
 });
 
@@ -108,19 +124,23 @@ bot.command("deleteBday", async (ctx: Context) => {
   const [command, user] = messageText.split(" ");
 
   if (command !== "/deleteBday" || !user) {
-    return ctx.reply("Usage: /deleteBday user (e.g., /deleteBday enderguy77)");
+    return ctx.reply("Использование: /deleteBday user (например, /deleteBday enderguy77)");
   }
 
   try {
-    const result = await db!.run("DELETE FROM birthdays WHERE user = ?", [user]);
+    const result = await db!.run("DELETE FROM birthdays WHERE user = ?", [
+      user,
+    ]);
     if (result.changes) {
-      ctx.reply(`Birthday for @${user} deleted successfully.`);
+      ctx.reply(`День рождения для @${user} успешно удален.`);
     } else {
-      ctx.reply(`No birthday found for @${user}.`);
+      ctx.reply(`День рождения для @${user} не найден.`);
     }
   } catch (error) {
-    console.error("Error deleting birthday:", error);
-    ctx.reply("An error occurred while deleting the birthday. Please try again.");
+    console.error("Ошибка при удалении дня рождения:", error);
+    ctx.reply(
+      "Произошла ошибка при удалении дня рождения. Пожалуйста, попробуйте снова."
+    );
   }
 });
 
@@ -148,23 +168,23 @@ async function sendBday(): Promise<void> {
     for (const user of todayBday) {
       const age = calculateAge(user.birthday);
 
-      let message = `🎉 Happy Birthday, @${user.user}! 🎂🥳`;
+      let message = `🎉 С днём рождения, @${user.user}! 🎂🥳`;
 
       if (age !== null) {
-        message += ` You are ${age} years old! 🎉`;
+        message += ` Вам ${age} лет! 🎉`;
       }
 
       await bot.api.sendMessage(GROUP_ID, message);
     }
   } catch (error) {
-    console.error("Error sending birthday messages:", error);
+    console.error("Ошибка при отправке сообщений о днях рождения:", error);
   }
 }
 
-const timer = cron.schedule(
+cron.schedule(
   "0 9 * * *",
   async () => {
-    console.log("Running scheduled task at 9 AM");
+    console.log("Выполнение запланированной задачи в 9 утра");
     await sendBday();
   },
   { scheduled: true, timezone: "Europe/Kiev" }
